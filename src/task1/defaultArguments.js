@@ -20,37 +20,37 @@ const getFuncArgNames = (func) => {
 
 /**
  * Takes an array of argument names and an object containing argument default values.
- * Returns a hashmap of default values, with values missing a default set to undefined
+ * Returns an object of default values, with values missing a default set to undefined
  * eg [ a, b, c ] and { b:1, c:2 } will return { a:undefined, b:1, c:2 }
  */
-const buildDefaultArgsHash = (argNames, defaultVals) => {
-  const parHash = {};
+const buildDefaultArgs = (argNames, defaultVals) => {
+  const args = {};
   argNames.forEach((parName) => {
-    parHash[parName] = defaultVals[parName];
+    args[parName] = defaultVals[parName];
   });
-  return parHash;
+  return args;
 };
 
 /**
  * Takes an array of argument names and an objects containing argument old and new
  * default values.
- * Returns a hashmap of default values, with old defaults overwitten by new defaults
+ * Returns an object of default values, with old defaults overwitten by new defaults
  * eg [ a, b, c ]  { a:undefined b:1, c:2 } { a:undfined, b:undefined, c:4} will return { a:undefined, b:1, c:4 }
  */
-const mergeDefaultArgsHash = (argNames, oldHash, newHash) => {
+const mergeDefaultArgs = (argNames, oldDefaults, newDefaults) => {
   argNames.forEach((parName) => {
-    if (newHash[parName]) oldHash[parName] = newHash[parName];
+    if (newDefaults[parName]) oldDefaults[parName] = newDefaults[parName];
   });
-  return oldHash;
+  return oldDefaults;
 };
 
 /**
- * Takes an array of arguments and a hashmap of default values and combines them to
+ * Takes an array of arguments and an object of default values and combines them to
  * return a merged argument array.
  * eg [ 1, 2 ] and { a:undefined, b:6, c:4 } will return [ 1, 2, 4 ]
  */
-const generateMergedArgArray = (args, parHash) => {
-  const mergedArgArray = Object.values(parHash);
+const generateMergedArgArray = (args, argDefaults) => {
+  const mergedArgArray = Object.values(argDefaults);
   args.forEach((value, index) => {
     if (value) mergedArgArray[index] = value;
   });
@@ -80,32 +80,32 @@ const isClosuredFunc = (func) => {
  */
 const defaultArguments = (func, defaultVals) => {
   let argNames = [];
-  let oldHash;
+  let oldDefaults;
 
   // Either generate defaults, or use pre-generated values if this is re-calling a wrapped func.
   if (isClosuredFunc(func)) {
     argNames = func.defaultArguments.argNames;
-    oldHash = func.defaultArguments.defaultsHash;
+    oldDefaults = func.defaultArguments.defaultArgs;
     func = func.defaultArguments.func; // Use the stored original func to prevent an eventual stack overflow
   } else {
     argNames = getFuncArgNames(func);
   }
 
-  let defaultsHash = buildDefaultArgsHash(argNames, defaultVals);
+  let defaultArgs = buildDefaultArgs(argNames, defaultVals);
 
-  if (oldHash) {
+  if (oldDefaults) {
     // Merge the previous defaults with the new
-    defaultsHash = mergeDefaultArgsHash(argNames, oldHash, defaultsHash);
+    defaultArgs = mergeDefaultArgs(argNames, oldDefaults, defaultArgs);
   }
 
   // Create the closure
   const closuredFunc = (...vals) => {
-    const argArray = generateMergedArgArray(vals, defaultsHash);
+    const argArray = generateMergedArgArray(vals, defaultArgs);
     return func(...argArray);
   };
 
   // Append the argNames to the closure to allow future iterative wrapping
-  closuredFunc.defaultArguments = { argNames, defaultsHash, func };
+  closuredFunc.defaultArguments = { argNames, defaultArgs, func };
 
   return closuredFunc;
 };
